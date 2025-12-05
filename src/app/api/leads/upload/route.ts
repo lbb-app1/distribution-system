@@ -15,29 +15,12 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'No leads provided' }, { status: 400 })
         }
 
-        let targetUserIds = userIds
-        if (!targetUserIds || targetUserIds.length === 0) {
-            const { data: users } = await supabase
-                .from('users')
-                .select('id')
-                .eq('role', 'user')
-                .eq('is_active', true)
-
-            if (!users || users.length === 0) {
-                return NextResponse.json({ error: 'No active users found' }, { status: 400 })
-            }
-            targetUserIds = users.map((u: any) => u.id)
-        }
-
-        const assignments = leads.map((lead: string, index: number) => {
-            const userId = targetUserIds[index % targetUserIds.length]
-            return {
-                lead_identifier: lead,
-                assigned_to: userId,
-                status: 'pending',
-                assigned_date: new Date().toISOString().split('T')[0]
-            }
-        })
+        const assignments = leads.map((lead: string) => ({
+            lead_identifier: lead,
+            assigned_to: null,
+            status: 'pending',
+            assigned_date: null // Not assigned yet
+        }))
 
         const { error } = await supabase
             .from('leads')

@@ -28,3 +28,12 @@ create table leads (
 
 -- Create an initial admin user (password: admin123 - hash this in real app, here just placeholder or use a script to insert)
 -- insert into users (username, password_hash, role) values ('admin', 'hashed_admin123', 'admin');
+
+-- Auto Assign Settings Table
+create table if not exists auto_assign_settings (
+  user_id uuid references users(id) on delete cascade primary key,
+  daily_limit int default 0,
+  is_enabled boolean default false,
+  updated_at timestamptz default now()
+);
+
