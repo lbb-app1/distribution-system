@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { LayoutDashboard, History, User, LogOut } from 'lucide-react'
+import { ModeToggle } from '@/components/mode-toggle'
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter()
@@ -13,8 +14,8 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <nav className="bg-white shadow-sm">
+        <div className="min-h-screen bg-muted/40 dark:bg-muted/40">
+            <nav className="bg-background border-b shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         <div className="flex">
@@ -22,21 +23,22 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                                 <h1 className="text-xl font-bold">Lead System</h1>
                             </div>
                             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                                <Link href="/dashboard" className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 border-b-2 border-transparent hover:border-gray-300">
+                                <Link href="/dashboard" className="inline-flex items-center px-1 pt-1 text-sm font-medium text-foreground border-b-2 border-transparent hover:border-border">
                                     <LayoutDashboard className="w-4 h-4 mr-2" />
                                     Today's Leads
                                 </Link>
-                                <Link href="/dashboard/history" className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300">
+                                <Link href="/dashboard/history" className="inline-flex items-center px-1 pt-1 text-sm font-medium text-muted-foreground hover:text-foreground border-b-2 border-transparent hover:border-border">
                                     <History className="w-4 h-4 mr-2" />
                                     History
                                 </Link>
-                                <Link href="/dashboard/profile" className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300">
+                                <Link href="/dashboard/profile" className="inline-flex items-center px-1 pt-1 text-sm font-medium text-muted-foreground hover:text-foreground border-b-2 border-transparent hover:border-border">
                                     <User className="w-4 h-4 mr-2" />
                                     Profile
                                 </Link>
                             </div>
                         </div>
-                        <div className="flex items-center">
+                        <div className="flex items-center space-x-4">
+                            <ModeToggle />
                             <Button variant="ghost" onClick={handleLogout}>
                                 <LogOut className="w-4 h-4 mr-2" />
                                 Logout

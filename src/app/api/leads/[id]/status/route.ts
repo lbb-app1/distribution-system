@@ -10,10 +10,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     try {
         const { id } = await params
-        const { status } = await request.json()
+        const { status, notes } = await request.json()
+        const updates: any = {}
 
-        if (!['pending', 'done', 'rejected'].includes(status)) {
-            return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+        if (status) {
+            if (!['pending', 'done', 'rejected'].includes(status)) {
+                return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+            }
+            updates.status = status
+        }
+
+        if (notes !== undefined) {
+            updates.notes = notes
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return NextResponse.json({ error: 'No updates provided' }, { status: 400 })
         }
 
         // If user, ensure they own the lead
@@ -31,7 +43,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
         const { data, error } = await supabase
             .from('leads')
-            .update({ status })
+            .update(updates)
             .eq('id', id)
             .select()
             .single()

@@ -2,12 +2,13 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { toast } from 'sonner'
+import { Upload, UserCheck } from 'lucide-react'
 
 export default function AssignLeadsPage() {
     const [file, setFile] = useState<File | null>(null)
@@ -15,7 +16,6 @@ export default function AssignLeadsPage() {
     const [users, setUsers] = useState<any[]>([])
     const [selectedUsers, setSelectedUsers] = useState<string[]>([])
     const [loading, setLoading] = useState(false)
-    const [message, setMessage] = useState('')
 
     useEffect(() => {
         fetch('/api/users')
@@ -41,6 +41,7 @@ export default function AssignLeadsPage() {
                 complete: (results) => {
                     const parsedLeads = (results.data as any[]).flat().filter((l: any) => l && typeof l === 'string' && l.trim() !== '') as string[]
                     setLeads(parsedLeads)
+                    toast.success(`Parsed ${parsedLeads.length} leads from CSV`)
                 },
                 header: false
             })
@@ -54,6 +55,7 @@ export default function AssignLeadsPage() {
                 const parsedData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][]
                 const parsedLeads = parsedData.flat().filter((l: any) => l && typeof l === 'string' && l.trim() !== '')
                 setLeads(parsedLeads)
+                toast.success(`Parsed ${parsedLeads.length} leads from Excel`)
             }
             reader.readAsBinaryString(file)
         }
@@ -61,11 +63,10 @@ export default function AssignLeadsPage() {
 
     const handleAssign = async () => {
         if (leads.length === 0) {
-            setMessage('No leads to assign')
+            toast.error('No leads to assign')
             return
         }
         setLoading(true)
-        setMessage('')
 
         try {
             const res = await fetch('/api/leads/upload', {
@@ -75,15 +76,15 @@ export default function AssignLeadsPage() {
             })
             const data = await res.json()
             if (res.ok) {
-                setMessage(`Successfully assigned ${data.count} leads`)
+                toast.success(`Successfully assigned ${data.count} leads`)
                 setLeads([])
                 setFile(null)
-                // Reset file input if possible or just let it be
+                // Reset file input visually if needed, but simplistic approach is fine
             } else {
-                setMessage(`Error: ${data.error}`)
+                toast.error(`Error: ${data.error}`)
             }
         } catch (error) {
-            setMessage('Failed to assign leads')
+            toast.error('Failed to assign leads')
         } finally {
             setLoading(false)
         }
@@ -95,50 +96,84 @@ export default function AssignLeadsPage() {
         )
     }
 
+    const selectAllUsers = () => {
+        if (selectedUsers.length === users.length) {
+            setSelectedUsers([])
+        } else {
+            setSelectedUsers(users.map(u => u.id))
+        }
+    }
+
     return (
-        <div className="space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Upload Leads</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <Input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} />
-                    {leads.length > 0 && (
-                        <p className="text-sm text-gray-500">Found {leads.length} leads</p>
-                    )}
-                </CardContent>
-            </Card>
+        <div className="space-y-8 max-w-4xl mx-auto">
+            <div>
+                <h2 className="text-3xl font-bold tracking-tight">Assign Leads</h2>
+                <p className="text-muted-foreground mt-1">Upload a file and distribute leads among your team.</p>
+            </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Select Users to Distribute</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                        {users.map(user => (
-                            <div key={user.id} className="flex items-center space-x-2">
-                                <Checkbox
-                                    id={user.id}
-                                    checked={selectedUsers.includes(user.id)}
-                                    onCheckedChange={() => toggleUser(user.id)}
-                                />
-                                <Label htmlFor={user.id}>{user.username}</Label>
+            <div className="grid gap-8 md:grid-cols-2">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center">
+                            <Upload className="w-5 h-5 mr-2" />
+                            Upload File
+                        </CardTitle>
+                        <CardDescription>Supported formats: CSV, Excel</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid w-full max-w-sm items-center gap-1.5">
+                            <Label htmlFor="file">Lead File</Label>
+                            <Input id="file" type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} />
+                        </div>
+                        {leads.length > 0 && (
+                            <div className="p-4 bg-muted/50 rounded-md text-sm">
+                                <span className="font-semibold text-primary">{leads.length}</span> leads ready to assign.
                             </div>
-                        ))}
-                    </div>
-                    {users.length === 0 && <p>No active users found.</p>}
-                </CardContent>
-            </Card>
+                        )}
+                    </CardContent>
+                </Card>
 
-            {message && (
-                <Alert>
-                    <AlertDescription>{message}</AlertDescription>
-                </Alert>
-            )}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                            <div className="flex items-center">
+                                <UserCheck className="w-5 h-5 mr-2" />
+                                Select Users
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={selectAllUsers}>
+                                {selectedUsers.length === users.length ? 'Deselect All' : 'Select All'}
+                            </Button>
+                        </CardTitle>
+                        <CardDescription>Choose who receives these leads</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-1 gap-3 max-h-[300px] overflow-y-auto pr-2">
+                            {users.map(user => (
+                                <div key={user.id} className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted/50 transition-colors border border-transparent hover:border-border">
+                                    <Checkbox
+                                        id={user.id}
+                                        checked={selectedUsers.includes(user.id)}
+                                        onCheckedChange={() => toggleUser(user.id)}
+                                    />
+                                    <Label htmlFor={user.id} className="flex-1 cursor-pointer font-medium">{user.username}</Label>
+                                </div>
+                            ))}
+                            {users.length === 0 && <p className="text-sm text-muted-foreground">No active users found.</p>}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
 
-            <Button onClick={handleAssign} disabled={loading || leads.length === 0} className="w-full">
-                {loading ? 'Assigning...' : 'Auto Assign Leads'}
-            </Button>
+            <div className="flex justify-end">
+                <Button
+                    onClick={handleAssign}
+                    disabled={loading || leads.length === 0}
+                    size="lg"
+                    className="w-full md:w-auto min-w-[200px]"
+                >
+                    {loading ? 'Assigning...' : 'Auto Assign Leads'}
+                </Button>
+            </div>
         </div>
     )
 }
