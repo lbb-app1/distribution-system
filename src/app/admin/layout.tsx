@@ -63,20 +63,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <SheetTrigger asChild>
                             <Button variant="ghost" size="icon">
                                 <Menu className="w-6 h-6" />
+                            </Button>
                         </SheetTrigger>
-                    </SheetTrigger>
-                    <SheetContent side="left" className="p-0 w-64">
-                        <SidebarContent />
-                    </SheetContent>
-                </Sheet>
-                <h1 className="text-lg font-bold">Admin Panel</h1>
-                <div className="w-6" /> {/* Spacer for centering if needed, or just empty */}
-            </div>
+                        <SheetContent side="left" className="p-0 w-64">
+                            <SidebarContent />
+                        </SheetContent>
+                    </Sheet>
+                    <h1 className="text-lg font-bold">Admin Panel</h1>
+                    <div className="w-6" /> {/* Spacer for centering if needed, or just empty */}
+                </div>
 
-            <div className="flex-1 overflow-auto p-4 md:p-8">
-                {children}
+                <div className="flex-1 overflow-auto p-4 md:p-8">
+                    {children}
+                </div>
             </div>
         </div>
-        </div >
     )
 }
