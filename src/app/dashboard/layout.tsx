@@ -35,6 +35,14 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                 History
             </Link>
             <Link
+                href="/dashboard/tracking"
+                onClick={() => mobile && setOpen(false)}
+                className={`inline-flex items-center px-1 pt-1 text-sm font-medium text-muted-foreground hover:text-foreground border-b-2 border-transparent hover:border-border ${mobile ? 'w-full py-3' : ''}`}
+            >
+                <LayoutDashboard className="w-4 h-4 mr-2" />
+                Tracking
+            </Link>
+            <Link
                 href="/dashboard/profile"
                 onClick={() => mobile && setOpen(false)}
                 className={`inline-flex items-center px-1 pt-1 text-sm font-medium text-muted-foreground hover:text-foreground border-b-2 border-transparent hover:border-border ${mobile ? 'w-full py-3' : ''}`}

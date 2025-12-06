@@ -17,7 +17,7 @@ export default function HistoryPage() {
                     // Group by date
                     const groups: { [date: string]: any[] } = {}
                     data.forEach((lead: any) => {
-                        const date = lead.assigned_date
+                        const date = lead.assigned_date || (lead.created_at ? lead.created_at.split('T')[0] : 'Unknown')
                         if (!groups[date]) {
                             groups[date] = []
                         }

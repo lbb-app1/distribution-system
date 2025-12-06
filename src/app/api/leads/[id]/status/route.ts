@@ -10,7 +10,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     try {
         const { id } = await params
-        const { status, notes } = await request.json()
+        const { status, notes, sub_status } = await request.json()
         const updates: any = {}
 
         if (status) {
@@ -18,6 +18,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
                 return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
             }
             updates.status = status
+            // Reset sub_status if status changes to something other than done
+            if (status !== 'done') {
+                updates.sub_status = null
+            }
+        }
+
+        if (sub_status !== undefined) {
+            if (sub_status !== null && !['Replied', 'Seen', 'Booked', 'Closed'].includes(sub_status)) {
+                return NextResponse.json({ error: 'Invalid sub_status' }, { status: 400 })
+            }
+            updates.sub_status = sub_status
         }
 
         if (notes !== undefined) {

@@ -17,6 +17,7 @@ create table leads (
   lead_identifier text not null,
   assigned_to uuid references users(id),
   status text check (status in ('pending', 'done', 'rejected')) default 'pending',
+  sub_status text check (sub_status in ('Replied', 'Seen', 'Booked', 'Closed')),
   assigned_date date default current_date,
   created_at timestamptz default now()
 );

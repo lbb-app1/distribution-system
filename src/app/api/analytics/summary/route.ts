@@ -33,6 +33,7 @@ export async function GET() {
 
     const userStats: any = {}
     userLeads?.forEach((lead: any) => {
+        if (!lead.assigned_to) return // Skip unassigned leads
         const username = lead.users?.username || 'Unknown'
         if (!userStats[username]) {
             userStats[username] = { username, assigned: 0, completed: 0 }

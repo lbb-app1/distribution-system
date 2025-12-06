@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { LayoutDashboard, Users, Upload, BarChart3, LogOut, Menu } from 'lucide-react'
+import { LayoutDashboard, Users, Upload, BarChart3, LogOut, Menu, List, Activity } from 'lucide-react'
 import { ModeToggle } from '@/components/mode-toggle'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useState } from 'react'
@@ -30,6 +30,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Link href="/admin/assign" onClick={() => setOpen(false)} className="flex items-center px-6 py-3 text-muted-foreground hover:bg-muted hover:text-foreground">
                     <Upload className="w-5 h-5 mr-3" />
                     Assign Leads
+                </Link>
+                <Link href="/admin/tracking" onClick={() => setOpen(false)} className="flex items-center px-6 py-3 text-muted-foreground hover:bg-muted hover:text-foreground">
+                    <Activity className="w-5 h-5 mr-3" />
+                    Tracking
+                </Link>
+                <Link href="/admin/leads/all" onClick={() => setOpen(false)} className="flex items-center px-6 py-3 text-muted-foreground hover:bg-muted hover:text-foreground">
+                    <List className="w-5 h-5 mr-3" />
+                    All Leads
                 </Link>
                 <Link href="/admin/users" onClick={() => setOpen(false)} className="flex items-center px-6 py-3 text-muted-foreground hover:bg-muted hover:text-foreground">
                     <Users className="w-5 h-5 mr-3" />
