@@ -2,10 +2,15 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getSession } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
     const session = await getSession()
-    if (!session || session.user.role !== 'admin') {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized: No session found' }, { status: 401 })
+    }
+    if (session.user.role !== 'admin') {
+        return NextResponse.json({ error: `Unauthorized: Role is ${session.user.role}, expected admin` }, { status: 401 })
     }
 
     try {
@@ -42,8 +47,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
     const session = await getSession()
-    if (!session || session.user.role !== 'admin') {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized: No session found' }, { status: 401 })
+    }
+    if (session.user.role !== 'admin') {
+        return NextResponse.json({ error: `Unauthorized: Role is ${session.user.role}, expected admin` }, { status: 401 })
     }
 
     try {

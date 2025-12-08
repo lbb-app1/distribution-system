@@ -12,6 +12,7 @@ export async function middleware(request: NextRequest) {
             // We can't easily check role here without decrypting, so we'll decrypt
             try {
                 const payload = await decrypt(session)
+                // console.log('Middleware: Decrypted payload:', payload)
                 if (payload?.user?.role === 'admin') {
                     return NextResponse.redirect(new URL('/admin/dashboard', request.url))
                 } else {

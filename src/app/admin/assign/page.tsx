@@ -36,13 +36,13 @@ export default function AssignLeadsPage() {
     }, [])
 
     const fetchBalance = async () => {
-        const res = await fetch('/api/leads/balance')
+        const res = await fetch('/api/leads/balance', { cache: 'no-store', credentials: 'include' })
         const data = await res.json()
         if (data.count !== undefined) setBalance(data.count)
     }
 
     const fetchUsers = async () => {
-        const res = await fetch('/api/users')
+        const res = await fetch('/api/users', { cache: 'no-store', credentials: 'include' })
         const data = await res.json()
         if (Array.isArray(data)) {
             setUsers(data.filter((u: any) => u.role === 'user' && u.is_active))
@@ -50,10 +50,24 @@ export default function AssignLeadsPage() {
     }
 
     const fetchAutoSettings = async () => {
-        const res = await fetch('/api/admin/settings/auto-assign')
-        const data = await res.json()
-        if (Array.isArray(data)) {
-            setAutoSettings(data)
+        try {
+            const res = await fetch('/api/admin/settings/auto-assign', { cache: 'no-store', credentials: 'include' })
+            if (!res.ok) {
+                if (res.status === 401) {
+                    console.log('Auto-assign settings fetch returned 401, redirecting to login')
+                    window.location.href = '/login'
+                    return
+                }
+                const err = await res.json()
+                console.error('Failed to fetch auto settings:', err)
+                return
+            }
+            const data = await res.json()
+            if (Array.isArray(data)) {
+                setAutoSettings(data)
+            }
+        } catch (e) {
+            console.error('Error fetching auto settings:', e)
         }
     }
 
@@ -183,11 +197,14 @@ export default function AssignLeadsPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ settings: payload }),
+                credentials: 'include'
             })
             if (res.ok) {
                 toast.success('Settings saved')
             } else {
-                toast.error('Failed to save settings')
+                const err = await res.json()
+                console.error('Failed to save settings:', err)
+                toast.error(`Failed to save settings: ${err.error || 'Unknown error'}`)
             }
         } catch (error) {
             toast.error('Error saving settings')

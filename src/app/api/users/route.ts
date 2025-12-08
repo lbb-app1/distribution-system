@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase'
 import bcrypt from 'bcryptjs'
 import { getSession } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
     const session = await getSession()
     if (!session || session.user.role !== 'admin') {

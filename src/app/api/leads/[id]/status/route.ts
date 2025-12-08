@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getSession } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
     const session = await getSession()
     if (!session) {
