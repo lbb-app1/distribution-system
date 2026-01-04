@@ -13,7 +13,21 @@ export async function POST(request: Request) {
             .eq('username', username)
             .single()
 
-        if (error || !user) {
+        if (error) {
+            console.error('Info: Login Supabase Error:', error.message)
+            // PGRST116 is the code for "JSON object requested, multiple (or no) rows returned" when using .single()
+            // However, depending on the version/query, checking error.details or code is safer.
+            // If it's a connection error, it won't be PGRST116.
+
+            // If rows are 0 and .single() was used, it implies user not found.
+            if (error.code === 'PGRST116') {
+                return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
+            }
+
+            return NextResponse.json({ error: 'Database Connection Error', details: error.message }, { status: 500 })
+        }
+
+        if (!user) {
             return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
         }
 
