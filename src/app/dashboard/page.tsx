@@ -178,9 +178,10 @@ export default function UserDashboard() {
 
             {/* Mobile View (Cards) */}
             <div className="grid gap-4 sm:hidden">
-                {leads.map(lead => (
+                {leads.map((lead, i) => (
                     <LeadCard
                         key={lead.id}
+                        index={i + 1}
                         lead={lead}
                         onStatusUpdate={handleStatusUpdate}
                         onSubStatusUpdate={handleSubStatusUpdate}
@@ -194,6 +195,7 @@ export default function UserDashboard() {
                 <Table>
                     <TableHeader className="bg-muted/40">
                         <TableRow>
+                            <TableHead className="w-[50px]">#</TableHead>
                             <TableHead className="w-[350px]">Lead Identifier</TableHead>
                             <TableHead className="w-[150px] text-center">Status</TableHead>
                             <TableHead>Notes</TableHead>
@@ -201,9 +203,10 @@ export default function UserDashboard() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {leads.map(lead => (
+                        {leads.map((lead, i) => (
                             <LeadRow
                                 key={lead.id}
+                                index={i + 1}
                                 lead={lead}
                                 onStatusUpdate={handleStatusUpdate}
                                 onSubStatusUpdate={handleSubStatusUpdate}

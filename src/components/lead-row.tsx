@@ -6,12 +6,13 @@ import { toast } from 'sonner'
 
 interface LeadRowProps {
     lead: any
+    index: number
     onStatusUpdate: (id: string, status: 'done' | 'rejected' | 'pending') => void
     onSubStatusUpdate: (id: string, subStatus: string) => void
     onOpenNote: (lead: any) => void
 }
 
-export function LeadRow({ lead, onStatusUpdate, onSubStatusUpdate, onOpenNote }: LeadRowProps) {
+export function LeadRow({ lead, index, onStatusUpdate, onSubStatusUpdate, onOpenNote }: LeadRowProps) {
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text)
         toast.success('Copied to clipboard')
@@ -19,6 +20,9 @@ export function LeadRow({ lead, onStatusUpdate, onSubStatusUpdate, onOpenNote }:
 
     return (
         <TableRow className="group hover:bg-muted/50 transition-colors">
+            <TableCell className="w-[50px] font-mono text-muted-foreground">
+                {index}
+            </TableCell>
             <TableCell className="font-medium font-mono text-sm">
                 <div className="flex items-center space-x-3">
                     <span>{lead.lead_identifier}</span>

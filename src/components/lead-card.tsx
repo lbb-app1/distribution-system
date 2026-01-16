@@ -6,12 +6,13 @@ import { toast } from 'sonner'
 
 interface LeadCardProps {
     lead: any
+    index?: number
     onStatusUpdate: (id: string, status: 'done' | 'rejected' | 'pending') => void
     onSubStatusUpdate: (id: string, subStatus: string) => void
     onOpenNote: (lead: any) => void
 }
 
-export function LeadCard({ lead, onStatusUpdate, onSubStatusUpdate, onOpenNote }: LeadCardProps) {
+export function LeadCard({ lead, index, onStatusUpdate, onSubStatusUpdate, onOpenNote }: LeadCardProps) {
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text)
         toast.success('Copied to clipboard')
@@ -21,7 +22,8 @@ export function LeadCard({ lead, onStatusUpdate, onSubStatusUpdate, onOpenNote }
         <Card className="overflow-hidden">
             <CardHeader className="pb-2 bg-muted/20">
                 <div className="flex justify-between items-start">
-                    <div className="font-mono font-medium text-lg break-all mr-2">
+                    <div className="font-mono font-medium text-lg break-all mr-2 flex items-center">
+                        {index && <span className="text-muted-foreground text-sm mr-2 font-normal">#{index}</span>}
                         {lead.lead_identifier}
                     </div>
                     <Button
