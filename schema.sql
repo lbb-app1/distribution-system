@@ -19,6 +19,7 @@ create table leads (
   status text check (status in ('pending', 'done', 'rejected')) default 'pending',
   sub_status text check (sub_status in ('Replied', 'Seen', 'Booked', 'Closed')),
   assigned_date date default current_date,
+  notes text,
   created_at timestamptz default now()
 );
 

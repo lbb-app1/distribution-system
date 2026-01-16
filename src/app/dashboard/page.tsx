@@ -164,7 +164,7 @@ export default function UserDashboard() {
                     <div className="relative w-full md:w-64">
                         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder="Search leads..."
+                            placeholder="Search all history (leads, notes)..."
                             className="pl-8"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}

@@ -65,6 +65,29 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             return NextResponse.json({ error: error.message }, { status: 500 })
         }
 
+        // Log Activity for Leaderboard
+        let points = 0
+
+        if (status === 'done') points += 5
+        if (status === 'rejected') points += 1
+
+        if (sub_status === 'Replied') points += 10
+        if (sub_status === 'Booked') points += 50
+        if (sub_status === 'Closed') points += 100
+
+        if (notes) points += 2
+
+        if (points > 0) {
+            // We use 'safe run' inside API, no await needed strictly if we don't return insertion result,
+            // but for reliability let's await.
+            await supabase.from('activity_logs').insert({
+                user_id: session.user.id,
+                action_type: 'lead_update',
+                points: points,
+                details: { lead_id: id, updates: updates }
+            })
+        }
+
         return NextResponse.json(data)
     } catch (error) {
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

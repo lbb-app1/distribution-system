@@ -2,10 +2,11 @@
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { LayoutDashboard, History, User, LogOut, Menu } from 'lucide-react'
+import { LayoutDashboard, History, User, LogOut, Menu, Trophy, Users } from 'lucide-react'
 import { ModeToggle } from '@/components/mode-toggle'
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { useState } from 'react'
+import { ActivityTracker } from '@/components/activity-tracker'
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter()
@@ -43,6 +44,22 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                 Tracking
             </Link>
             <Link
+                href="/dashboard/leaderboard"
+                onClick={() => mobile && setOpen(false)}
+                className={`inline-flex items-center px-1 pt-1 text-sm font-medium text-muted-foreground hover:text-foreground border-b-2 border-transparent hover:border-border ${mobile ? 'w-full py-3' : ''}`}
+            >
+                <Trophy className="w-4 h-4 mr-2" />
+                Leaderboard
+            </Link>
+            <Link
+                href="/dashboard/clients"
+                onClick={() => mobile && setOpen(false)}
+                className={`inline-flex items-center px-1 pt-1 text-sm font-medium text-muted-foreground hover:text-foreground border-b-2 border-transparent hover:border-border ${mobile ? 'w-full py-3' : ''}`}
+            >
+                <Users className="w-4 h-4 mr-2" />
+                Clients
+            </Link>
+            <Link
                 href="/dashboard/profile"
                 onClick={() => mobile && setOpen(false)}
                 className={`inline-flex items-center px-1 pt-1 text-sm font-medium text-muted-foreground hover:text-foreground border-b-2 border-transparent hover:border-border ${mobile ? 'w-full py-3' : ''}`}
@@ -55,6 +72,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
 
     return (
         <div className="min-h-screen bg-muted/40 dark:bg-muted/40">
+            <ActivityTracker />
             <nav className="bg-background border-b shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
@@ -68,6 +86,9 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                                         </Button>
                                     </SheetTrigger>
                                     <SheetContent side="left" className="w-64">
+                                        <SheetHeader>
+                                            <SheetTitle>Navigation</SheetTitle>
+                                        </SheetHeader>
                                         <div className="flex flex-col space-y-4 mt-6">
                                             <NavLinks mobile />
                                         </div>
