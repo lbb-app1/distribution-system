@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 
 interface LeadRowProps {
     lead: any
-    index: number
+    index?: number
     onStatusUpdate: (id: string, status: 'done' | 'rejected' | 'pending') => void
     onSubStatusUpdate: (id: string, subStatus: string) => void
     onOpenNote: (lead: any) => void
@@ -21,7 +21,7 @@ export function LeadRow({ lead, index, onStatusUpdate, onSubStatusUpdate, onOpen
     return (
         <TableRow className="group hover:bg-muted/50 transition-colors">
             <TableCell className="w-[50px] font-mono text-muted-foreground">
-                {index}
+                {index ? index : '-'}
             </TableCell>
             <TableCell className="font-medium font-mono text-sm">
                 <div className="flex items-center space-x-3">

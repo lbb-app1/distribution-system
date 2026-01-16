@@ -196,6 +196,7 @@ export default function TrackingPage() {
                                                         <TableBody>
                                                             <LeadRow
                                                                 lead={lead}
+                                                                index={0} // Index not relevant in this specific grouped tracking view, but required by type
                                                                 onStatusUpdate={handleStatusUpdate}
                                                                 onSubStatusUpdate={handleSubStatusUpdate}
                                                                 onOpenNote={openNoteDialog}
