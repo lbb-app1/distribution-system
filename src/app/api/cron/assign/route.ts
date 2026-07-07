@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
     // Verify Cron Secret (Optional but recommended for security)
     const authHeader = request.headers.get('authorization')
