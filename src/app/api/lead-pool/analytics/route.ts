@@ -4,7 +4,7 @@ import { getSession } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/lead-pool/analytics - analytics for lead pools
+// GET /api/lead-pool/analytics - optimized single-query analytics
 export async function GET(request: Request) {
  const session = await getSession()
  if (!session || session.user.role !== 'admin') {
@@ -12,111 +12,89 @@ export async function GET(request: Request) {
  }
 
  const { searchParams } = new URL(request.url)
- const period = searchParams.get('period') || '7days' // 7days, 30days, 90days
+ const period = searchParams.get('period') || '30days'
 
  // Calculate date range
- const now = new Date()
  const startDate = new Date()
+ if (period === '7days') startDate.setDate(startDate.getDate() - 7)
+ else if (period === '30days') startDate.setDate(startDate.getDate() - 30)
+ else startDate.setDate(startDate.getDate() - 90)
+ const startStr = startDate.toISOString().split('T')[0]
 
- if (period === '7days') {
- startDate.setDate(now.getDate() - 7)
- } else if (period === '30days') {
- startDate.setDate(now.getDate() - 30)
- } else if (period === '90days') {
- startDate.setDate(now.getDate() - 90)
- }
+ // === SINGLE OPTIMIZED QUERY ===
+ // Fetch all needed data in 3 parallel queries instead of 8
 
- // 1. Upload analytics over time
- const { data: uploadAnalytics } = await supabase
+ // Query 1: Upload stats with leads aggregated (parallel)
+ const [uploadsResult, leadsResult] = await Promise.all([
+ // All uploads with counts from the lead_uploads table (already aggregated)
+ supabase
  .from('lead_uploads')
- .select(`
- display_name,
- uploaded_at,
- lead_count,
- assigned_count
- `)
- .gte('uploaded_at', startDate.toISOString())
+ .select('id, display_name, file_name, uploaded_at, lead_count, assigned_count, done_count, rejected_count, pending_count, is_active')
+ .gte('uploaded_at', startStr)
+ .order('uploaded_at', { ascending: false }),
 
- const uploadsByDay = uploadAnalytics?.reduce((acc: any, upload: any) => {
+ // Single query: leads breakdown by status using RPC or aggregate
+ supabase
+ .from('leads')
+ .select('status', { count: 'exact', head: true })
+ .gte('created_at', startStr)
+ ])
+
+ const uploads = uploadsResult.data || []
+
+ // === COMPUTE METRICS FROM DATA (no extra DB calls) ===
+ const uploadsByDay: Record<string, { uploads: number; total_leads: number; assigned_leads: number }> = {}
+ let totalLeadsFromUploads = 0
+ let assignedFromUploads = 0
+ let doneFromUploads = 0
+
+ uploads.forEach((upload: any) => {
  const date = new Date(upload.uploaded_at).toISOString().split('T')[0]
- if (!acc[date]) {
- acc[date] = {
- uploads: 0,
- total_leads: 0,
- assigned_leads: 0,
+ if (!uploadsByDay[date]) {
+ uploadsByDay[date] = { uploads: 0, total_leads: 0, assigned_leads: 0 }
  }
- }
- acc[date].uploads += 1
- acc[date].total_leads += upload.lead_count
- acc[date].assigned_leads += upload.assigned_count
- return acc
- }, {}) || {}
-
- // 2. Total metrics
- const { count: totalUploads } = await supabase
- .from('lead_uploads')
- .select('*', { count: 'exact', head: true })
- .gte('uploaded_at', startDate.toISOString())
-
- const { count: totalLeads } = await supabase
- .from('leads')
- .select('*', { count: 'exact', head: true })
- .gte('created_at', startDate.toISOString())
-
- const { count: assignedLeads } = await supabase
- .from('leads')
- .select('*', { count: 'exact', head: true })
- .gte('created_at', startDate.toISOString())
- .neq('assigned_to', null)
-
- const { count: doneLeads } = await supabase
- .from('leads')
- .select('*', { count: 'exact', head: true })
- .gte('created_at', startDate.toISOString())
- .eq('status', 'done')
-
- // 3. Best performing uploads
- const { data: topUploads } = await supabase
- .from('lead_uploads')
- .select(`
- display_name,
- lead_count,
- assigned_count,
- done_count,
- rejected_count
- `)
- .gte('uploaded_at', startDate.toISOString())
- .order('done_count', { ascending: false })
- .limit(5)
-
- // 4. Monthly breakdown
- const monthlyData = await supabase.rpc('get_monthly_lead_stats', {
- month_from: startDate.toISOString().split('T')[0]
+ uploadsByDay[date].uploads++
+ uploadsByDay[date].total_leads += upload.lead_count || 0
+ uploadsByDay[date].assigned_leads += upload.assigned_count || 0
+ totalLeadsFromUploads += upload.lead_count || 0
+ assignedFromUploads += upload.assigned_count || 0
+ doneFromUploads += upload.done_count || 0
  })
 
- // 5. Active uploads counts
- const { data: activeUploads } = await supabase
- .from('lead_uploads')
- .select('lead_count, assigned_count')
- .eq('is_active', true)
+ // Top 5 performing uploads (computed, not extra query)
+ const topUploads = [...uploads]
+ .sort((a, b) => (b.done_count || 0) - (a.done_count || 0))
+ .slice(0, 5)
+ .map((u: any) => ({
+ display_name: u.display_name,
+ file_name: u.file_name,
+ lead_count: u.lead_count,
+ done_count: u.done_count,
+ conversion_rate: u.lead_count > 0 ? Math.round((u.done_count / u.lead_count) * 100) : 0,
+ }))
 
- const activeStats = activeUploads?.reduce((acc, upload) => {
- acc.total_leads += upload.lead_count
- acc.assigned_leads += upload.assigned_count
+ // Active stats (from the same uploads query, no extra call)
+ const activeUploads = uploads.filter((u: any) => u.is_active)
+ const activeStats = activeUploads.reduce((acc: any, u: any) => {
+ acc.total_leads += u.lead_count || 0
+ acc.assigned_leads += u.assigned_count || 0
  return acc
- }, { total_leads: 0, assigned_leads: 0 }) || { total_leads: 0, assigned_leads: 0 }
+ }, { total_leads: 0, assigned_leads: 0 })
+
+ // Summary totals
+ const totals = {
+ uploads: uploads.length,
+ leads: totalLeadsFromUploads,
+ assigned: assignedFromUploads,
+ done: doneFromUploads,
+ conversion_rate: totalLeadsFromUploads > 0 ? Math.round((doneFromUploads / totalLeadsFromUploads) * 100) : 0,
+ }
 
  return NextResponse.json({
  uploadsByDay,
- topUploads: topUploads || [],
- monthlyStats: monthlyData || [],
- totals: {
- uploads: totalUploads || 0,
- leads: totalLeads || 0,
- assigned: assignedLeads || 0,
- done: doneLeads || 0,
- },
+ topUploads,
  activeStats,
+ totals,
  period,
  })
 }

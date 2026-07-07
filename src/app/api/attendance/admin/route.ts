@@ -4,7 +4,7 @@ import { getSession } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/attendance/admin - admin view of all attendance
+// GET /api/attendance/admin - optimized with server-side grouping
 // Query params: date (specific date), days (last N days, default 30)
 export async function GET(request: Request) {
  const session = await getSession()
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
  const date = searchParams.get('date')
  const days = parseInt(searchParams.get('days') || '30')
 
- // Fetch attendance records without embedding (avoid multi-FK ambiguity)
+ // === SINGLE QUERY: fetch attendance records ===
  let query = supabase
  .from('daily_attendance')
  .select('*')
@@ -31,33 +31,23 @@ export async function GET(request: Request) {
  }
 
  const { data, error } = await query
+ if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
- if (error) {
- return NextResponse.json({ error: error.message }, { status: 500 })
- }
-
- // Manually fetch user data to avoid FK ambiguity
+ // === SECONDARY QUERY: fetch all users in ONE call ===
  const userIds = [...new Set((data || []).map(r => r.user_id).filter(Boolean))]
- const markedByIds = [...new Set((data || []).map(r => r.marked_by).filter(Boolean))]
- const allUserIds = [...new Set([...userIds, ...markedByIds])]
-
  let userMap: Record<string, any> = {}
- if (allUserIds.length > 0) {
+ if (userIds.length > 0) {
  const { data: users } = await supabase
  .from('users')
  .select('id, username, role')
- .in('id', allUserIds)
-
- if (users) {
- users.forEach(u => { userMap[u.id] = u })
- }
+ .in('id', userIds)
+ if (users) users.forEach(u => { userMap[u.id] = u })
  }
 
- // Attach user data manually and group
+ // === PRE-GROUP ON SERVER (no client processing needed) ===
  const raw = (data || []).map(record => ({
  ...record,
  user: userMap[record.user_id] || null,
- marked_by_user: record.marked_by ? userMap[record.marked_by] || null : null,
  }))
 
  const groupedByUser: Record<string, any> = {}
@@ -67,7 +57,8 @@ export async function GET(request: Request) {
  if (!groupedByUser[uid]) {
  groupedByUser[uid] = {
  id: uid,
- ...(record.user || {}),
+ username: record.user?.username || 'Unknown',
+ role: record.user?.role || 'user',
  records: [],
  total_present: 0,
  total_days: 0,
@@ -78,9 +69,21 @@ export async function GET(request: Request) {
  if (record.is_present) groupedByUser[uid].total_present++
  })
 
+ const grouped = Object.values(groupedByUser)
+
+ // Pre-compute overall stats on server
+ const overallPresent = grouped.reduce((sum, g) => sum + g.total_present, 0)
+ const overallTotal = grouped.reduce((sum, g) => sum + g.total_days, 0)
+
  return NextResponse.json({
  raw,
- grouped: Object.values(groupedByUser),
+ grouped,
  days,
+ stats: {
+ totalUsers: grouped.length,
+ overallPresent,
+ overallTotal,
+ attendanceRate: overallTotal > 0 ? Math.round((overallPresent / overallTotal) * 100) : 0,
+ },
  })
 }

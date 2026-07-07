@@ -16,6 +16,10 @@ export async function GET(request: Request) {
  const search = searchParams.get('search')
  const subStatus = searchParams.get('sub_status')
  const unassigned = searchParams.get('unassigned') === 'true'
+ const page = parseInt(searchParams.get('page') || '0')
+ const limit = parseInt(searchParams.get('limit') || '50')
+ const sortBy = searchParams.get('sort_by') || 'created_at'
+ const sortOrder = searchParams.get('sort_order') || 'desc'
 
  let selectQuery = '*, assigned_to(username)'
  let selectOptions: any = {}
@@ -28,45 +32,41 @@ export async function GET(request: Request) {
  .from('leads')
  .select(selectQuery, selectOptions)
 
- // Filters
- if (!all) {
- if (!search && !subStatus && !unassigned) {
+ // Always apply filters first
+ if (unassigned) {
+ query = query.is('assigned_to', null)
+ } else if (session.user.role !== 'admin') {
+ query = query.eq('assigned_to', session.user.id)
+ } else {
+ // For admin with no unassigned filter, allow date filtering
+ if (!search && !subStatus && !all && !date) {
  query = query.eq('assigned_date', date || new Date().toISOString().split('T')[0])
  }
  }
 
- // Filter for unassigned leads only
- if (unassigned) {
- query = query.is('assigned_to', null)
- }
-
- if (session.user.role !== 'admin' && !unassigned) {
- query = query.eq('assigned_to', session.user.id)
- }
-
+ // Search with server-side filtering
  if (search) {
- // Search across lead_identifier and notes
  const orCondition = `lead_identifier.ilike.%${search}%,notes.ilike.%${search}%`
  query = query.or(orCondition)
  }
 
+ // Substatus filtering
  if (subStatus) {
  if (subStatus === 'tracking') {
- query = query.not('sub_status', 'is', null)
+ query = query.not('sub_status', 'is', null')
  } else {
  query = query.eq('sub_status', subStatus)
  }
  }
 
- // Pagination and Sorting
- if (all || unassigned) {
- const page = parseInt(searchParams.get('page') || '0')
- const limit = parseInt(searchParams.get('limit') || '50')
+ // Always apply pagination for large datasets (leads table is huge)
  const from = page * limit
  const to = from + limit - 1
-
  query = query.range(from, to)
- query = query.order('created_at', { ascending: unassigned }) // newest first for unassigned
+
+ // Apply sorting with direction
+ const sortOrderValue = sortOrder === 'asc' ? 'asc' : 'desc'
+ query = query.order(sortBy, { ascending: sortOrderValue === 'asc' })
 
  const { data, error, count } = await query
 
@@ -75,17 +75,17 @@ export async function GET(request: Request) {
  return NextResponse.json({ error: error.message }, { status: 500 })
  }
 
- return NextResponse.json({ data, count })
+ return NextResponse.json({
+ data,
+ count,
+ pagination: {
+ page,
+ limit,
+ totalPages: Math.ceil(count / limit),
+ hasNext: (page + 1) * limit < count,
+ hasPrev: page > 0,
  }
-
- const { data, error } = await query
-
- if (error) {
- console.error('API Error:', error)
- return NextResponse.json({ error: error.message }, { status: 500 })
- }
-
- return NextResponse.json(data)
+ })
 }
 
 export async function POST(request: Request) {
