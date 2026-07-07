@@ -4,6 +4,56 @@ import { getSession } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
+// GET /api/lead-pool/uploads - get all lead uploads with counts
+// POST /api/lead-pool/uploads - create a new upload (duplicate of /api/leads/upload)
+export async function GET(request: Request) {
+ const session = await getSession()
+ if (!session) {
+ return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+ }
+
+ const { searchParams } = new URL(request.url)
+ const activeOnly = searchParams.get('active') === 'true'
+
+ let query = supabase
+ .from('lead_uploads')
+ .select(`
+ id,
+ file_name,
+ display_name,
+ uploaded_by,
+ uploaded_at,
+ lead_count,
+ assigned_count,
+ pending_count,
+ done_count,
+ rejected_count,
+ is_active,
+ uploader:users(id, username)
+ `)
+ .order('uploaded_at', { ascending: false })
+
+ if (activeOnly) {
+ query = query.eq('is_active', true)
+ }
+
+ const { data, error } = await query
+
+ if (error) {
+ return NextResponse.json({ error: error.message }, { status: 500 })
+ }
+
+ // Format data nicely
+ const formattedData = (data || []).map((upload: any) => ({
+ ...upload,
+ uploader: (upload.uploader as any)?.username || 'Unknown',
+ uploaded_at: new Date(upload.uploaded_at).toISOString(),
+ upload_percentage: upload.lead_count > 0 ? Math.round((upload.assigned_count / upload.lead_count) * 100) : 0,
+ }))
+
+ return NextResponse.json(formattedData)
+}
+
 export async function POST(request: Request) {
  const session = await getSession()
  if (!session || session.user.role !== 'admin') {
@@ -52,7 +102,6 @@ export async function POST(request: Request) {
  return NextResponse.json({ error: leadsError.message }, { status: 500 })
  }
 
- // 3. Trigger already updates counts via DB trigger, but let's be safe and refresh
  return NextResponse.json({
  success: true,
  count: assignments.length,
