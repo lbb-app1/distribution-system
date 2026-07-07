@@ -16,9 +16,10 @@ export async function GET(request: Request) {
  const date = searchParams.get('date')
  const days = parseInt(searchParams.get('days') || '30')
 
+ // Fetch attendance records without embedding (avoid multi-FK ambiguity)
  let query = supabase
  .from('daily_attendance')
- .select('*, user:users(id, username, role)')
+ .select('*')
  .order('date', { ascending: false })
 
  if (date) {
@@ -35,14 +36,38 @@ export async function GET(request: Request) {
  return NextResponse.json({ error: error.message }, { status: 500 })
  }
 
- // Group by user
+ // Manually fetch user data to avoid FK ambiguity
+ const userIds = [...new Set((data || []).map(r => r.user_id).filter(Boolean))]
+ const markedByIds = [...new Set((data || []).map(r => r.marked_by).filter(Boolean))]
+ const allUserIds = [...new Set([...userIds, ...markedByIds])]
+
+ let userMap: Record<string, any> = {}
+ if (allUserIds.length > 0) {
+ const { data: users } = await supabase
+ .from('users')
+ .select('id, username, role')
+ .in('id', allUserIds)
+
+ if (users) {
+ users.forEach(u => { userMap[u.id] = u })
+ }
+ }
+
+ // Attach user data manually and group
+ const raw = (data || []).map(record => ({
+ ...record,
+ user: userMap[record.user_id] || null,
+ marked_by_user: record.marked_by ? userMap[record.marked_by] || null : null,
+ }))
+
  const groupedByUser: Record<string, any> = {}
- ;(data || []).forEach((record: any) => {
- const uid = record.user?.id
+ raw.forEach(record => {
+ const uid = record.user_id
  if (!uid) return
  if (!groupedByUser[uid]) {
  groupedByUser[uid] = {
- ...record.user,
+ id: uid,
+ ...(record.user || {}),
  records: [],
  total_present: 0,
  total_days: 0,
@@ -54,7 +79,7 @@ export async function GET(request: Request) {
  })
 
  return NextResponse.json({
- raw: data || [],
+ raw,
  grouped: Object.values(groupedByUser),
  days,
  })

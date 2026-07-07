@@ -23,6 +23,7 @@ export async function GET(request: Request) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }
 
+ // Fetch attendance record without embedding
  const { data, error } = await supabase
  .from('daily_attendance')
  .select('*')
@@ -30,12 +31,9 @@ export async function GET(request: Request) {
  .eq('date', targetDate)
  .single()
 
- if (error && error.code !== 'PGRST116') {
- return NextResponse.json({ error: error.message }, { status: 500 })
- }
-
- // If no record exists yet, calculate from tasks
- if (!data) {
+ if (error) {
+ if (error.code === 'PGRST116') { // No rows found
+ // Calculate from tasks
  const { count: total } = await supabase
  .from('daily_tasks')
  .select('*', { count: 'exact', head: true })
@@ -58,11 +56,16 @@ export async function GET(request: Request) {
  tasks: [],
  })
  }
+ return NextResponse.json({ error: error.message }, { status: 500 })
+ }
 
  // Get individual tasks for this user/date
  const { data: tasks } = await supabase
  .from('daily_tasks')
- .select('*, lead:leads(lead_identifier, status, sub_status)')
+ .select(`
+ *,
+ lead:leads!daily_tasks_lead_id_fkey(lead_identifier, status, sub_status)
+ `)
  .eq('user_id', targetUserId)
  .eq('date', targetDate)
  .order('created_at', { ascending: true })
