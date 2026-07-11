@@ -211,6 +211,9 @@ export default function LeadPoolPage() {
  <RefreshCw className="w-4 h-4" />
  </Button>
  </CardTitle>
+ <div className="text-sm text-muted-foreground mt-1">
+ Showing page {page + 1} of {totalPages}
+ </div>
  <div className="flex items-center gap-4">
  <div className="flex-1">
  <Input

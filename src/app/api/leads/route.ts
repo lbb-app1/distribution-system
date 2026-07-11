@@ -24,9 +24,8 @@ export async function GET(request: Request) {
  let selectQuery = '*, assigned_to(username)'
  let selectOptions: any = {}
 
- if (all) {
+ // Always get count for pagination, especially for large datasets
  selectOptions.count = 'exact'
- }
 
  let query = supabase
  .from('leads')
@@ -53,7 +52,7 @@ export async function GET(request: Request) {
  // Substatus filtering
  if (subStatus) {
  if (subStatus === 'tracking') {
- query = query.not('sub_status', 'is', null')
+ query = query.not('sub_status', 'is', null)
  } else {
  query = query.eq('sub_status', subStatus)
  }
@@ -75,14 +74,16 @@ export async function GET(request: Request) {
  return NextResponse.json({ error: error.message }, { status: 500 })
  }
 
+ const totalCount = count || 0
+
  return NextResponse.json({
  data,
- count,
+ count: totalCount,
  pagination: {
  page,
  limit,
- totalPages: Math.ceil(count / limit),
- hasNext: (page + 1) * limit < count,
+ totalPages: Math.ceil(totalCount / limit),
+ hasNext: (page + 1) * limit < totalCount,
  hasPrev: page > 0,
  }
  })
