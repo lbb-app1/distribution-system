@@ -110,7 +110,7 @@ export async function POST(request: Request) {
  success: true,
  tasks_created: leads.length,
  tasks,
- attendance: { totalTasks, completedTasks, is_present },
+ attendance: { totalTasks, completedTasks, is_present: auto_present },
  })
  } catch (error) {
  return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
