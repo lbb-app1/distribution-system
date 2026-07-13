@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS daily_attendance (
  marked_by uuid REFERENCES users(id) ON DELETE SET NULL,
  marked_at timestamptz,
  notes text,
+ admin_override boolean DEFAULT false,
  UNIQUE(user_id, date)
 );
 

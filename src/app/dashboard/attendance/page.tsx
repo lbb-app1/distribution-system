@@ -187,19 +187,19 @@ export default function AttendancePage() {
  </div>
  <Progress value={(today.completed_tasks / today.total_tasks) * 100} className="w-full" />
  <div className="text-sm text-muted-foreground">
- {today.completed_tasks === today.total_tasks ? (
+ {(today.completed_tasks / today.total_tasks) >= 0.60 ? (
  <span className="text-green-600 flex items-center gap-1">
  <CheckCircle2 className="w-4 h-4" />
- All tasks completed! Marked as present.
+ Marked as present (60% threshold met)!
  </span>
  ) : today.completed_tasks === 0 ? (
  <span className="text-orange-600 flex items-center gap-1">
  <Clock className="w-4 h-4" />
- No tasks completed yet.
+ No tasks completed yet. Complete 60% to be marked present.
  </span>
  ) : (
  <span className="text-blue-600">
- Keep working! You have {today.total_tasks - today.completed_tasks} tasks remaining.
+ {Math.ceil(today.total_tasks * 0.60) - today.completed_tasks} more task(s) needed to reach 60% threshold for attendance.
  </span>
  )}
  </div>

@@ -4,6 +4,8 @@ import { getSession } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
+const PRESENT_THRESHOLD = 0.60
+
 // GET /api/attendance/admin - optimized with server-side grouping
 // Query params: date (specific date), days (last N days, default 30)
 export async function GET(request: Request) {
@@ -34,24 +36,62 @@ export async function GET(request: Request) {
  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
  // === SECONDARY QUERY: fetch all users in ONE call ===
- const userIds = [...new Set((data || []).map(r => r.user_id).filter(Boolean))]
+ const userIds = [...new Set((data || []).map((r: any) => r.user_id).filter(Boolean))]
  let userMap: Record<string, any> = {}
  if (userIds.length > 0) {
  const { data: users } = await supabase
  .from('users')
  .select('id, username, role')
  .in('id', userIds)
- if (users) users.forEach(u => { userMap[u.id] = u })
+ if (users) users.forEach((u: any) => { userMap[u.id] = u })
  }
 
- // === PRE-GROUP ON SERVER (no client processing needed) ===
- const raw = (data || []).map(record => ({
+ // === AUTO-RECALCULATE: use 60% threshold for non-admin-overridden records ===
+ // Batch fetch tasks for all records that aren't admin-overridden
+ const recordsToRecalc = (data || []).filter((r: any) => !r.admin_override && !r.marked_by)
+ let taskTotals: Record<string, { total: number; completed: number }> = {}
+
+ if (recordsToRecalc.length > 0) {
+ // Get unique user_id+date pairs
+ const pairs = recordsToRecalc.map((r: any) => ({ user_id: r.user_id, date: r.date }))
+ const { data: tasks } = await supabase
+ .from('daily_tasks')
+ .select('user_id, date, is_completed')
+ .or(pairs.map((p: any) => `and(user_id.eq.${p.user_id},date.eq.${p.date})`).join(','))
+
+ if (tasks) {
+ tasks.forEach((t: any) => {
+ const key = `${t.user_id}-${t.date}`
+ if (!taskTotals[key]) taskTotals[key] = { total: 0, completed: 0 }
+ taskTotals[key].total++
+ if (t.is_completed) taskTotals[key].completed++
+ })
+ }
+ }
+
+ // Apply recalculated values
+ const raw = (data || []).map((record: any) => {
+ if (!record.admin_override && !record.marked_by) {
+ const key = `${record.user_id}-${record.date}`
+ const totals = taskTotals[key]
+ if (totals && totals.total > 0) {
+ return {
+ ...record,
+ total_tasks: totals.total,
+ completed_tasks: totals.completed,
+ is_present: (totals.completed / totals.total) >= PRESENT_THRESHOLD,
+ }
+ }
+ }
+ return record
+ }).map((record: any) => ({
  ...record,
  user: userMap[record.user_id] || null,
  }))
 
+ // === PRE-GROUP ON SERVER ===
  const groupedByUser: Record<string, any> = {}
- raw.forEach(record => {
+ raw.forEach((record: any) => {
  const uid = record.user_id
  if (!uid) return
  if (!groupedByUser[uid]) {
@@ -71,7 +111,6 @@ export async function GET(request: Request) {
 
  const grouped = Object.values(groupedByUser)
 
- // Pre-compute overall stats on server
  const overallPresent = grouped.reduce((sum, g) => sum + g.total_present, 0)
  const overallTotal = grouped.reduce((sum, g) => sum + g.total_days, 0)
 

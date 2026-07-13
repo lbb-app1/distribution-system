@@ -34,6 +34,7 @@ export async function POST(request: Request) {
  marked_by: markedBy,
  marked_at: new Date().toISOString(),
  notes: notes || null,
+ admin_override: markedBy ? true : false,
  },
  {
  onConflict: 'user_id,date',
