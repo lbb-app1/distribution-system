@@ -415,6 +415,7 @@ export default function LeadPoolPage() {
  <Button variant="outline" onClick={() => setEditLead(null)}>Cancel</Button>
  <Button onClick={saveEdit}>Save Changes</Button>
  </DialogFooter>
+ </DialogContent>
  </Dialog>
 
  {/* Delete Confirmation Dialog */}
@@ -430,6 +431,7 @@ export default function LeadPoolPage() {
  <Button variant="outline" onClick={() => setDeleteConfirm(false)}>Cancel</Button>
  <Button variant="destructive" onClick={deleteLead}>Delete</Button>
  </DialogFooter>
+ </DialogContent>
  </Dialog>
  </div>
  )
