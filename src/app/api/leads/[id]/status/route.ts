@@ -63,7 +63,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
  .eq('user_id', session.user.id)
  .eq('date', existingTask.date)
 
- const completedCount = allTasks?.filter(t => t.is_completed).length || 0
+ const completedCount = allTasks?.filter((t: any) => t.is_completed).length || 0
  const totalCount = allTasks?.length || 0
 
  // Upsert attendance record

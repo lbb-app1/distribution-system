@@ -71,13 +71,13 @@ export async function GET(request: Request) {
  is_present: r.admin_override ? r.is_present : (correctedPresent[r.date] ?? r.is_present),
  }))
 
- const presentDays = finalRecords.filter(r => r.is_present).length
+ const presentDays = finalRecords.filter((r: any) => r.is_present).length
  const totalDays = finalRecords.length
 
  // Generate calendar data for heatmap
  const today = new Date()
  const calendarMap: Record<string, 'present' | 'absent' | 'none'> = {}
- finalRecords.forEach(r => {
+ finalRecords.forEach((r: any) => {
  calendarMap[r.date] = r.is_present ? 'present' : 'absent'
  })
 

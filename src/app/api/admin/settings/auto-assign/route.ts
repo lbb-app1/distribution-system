@@ -30,8 +30,8 @@ export async function GET() {
         if (settingsError) throw settingsError
 
         // Merge
-        const result = users.map(user => {
-            const setting = settings?.find(s => s.user_id === user.id)
+        const result = users.map((user: any) => {
+            const setting = settings?.find((s: any) => s.user_id === user.id)
             return {
                 ...user,
                 daily_limit: setting?.daily_limit || 0,

@@ -49,7 +49,7 @@ export async function GET(request: Request) {
                 continue
             }
 
-            const leadIds = leadsToAssign.map(l => l.id)
+            const leadIds = leadsToAssign.map((l: any) => l.id)
 
             // Assign leads
             const { error: updateError } = await supabase

@@ -41,7 +41,7 @@ export async function POST(request: Request) {
                 break
             }
 
-            const leadIds = leadsToAssign.map(l => l.id)
+            const leadIds = leadsToAssign.map((l: any) => l.id)
 
             // Update these leads
             const { error: updateError } = await supabase
