@@ -113,7 +113,7 @@ export default function AssignLeadsPage() {
             const res = await fetch('/api/leads/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ leads, fileName: file.name, displayName: file.name }),
+                body: JSON.stringify({ leads, fileName: file?.name || 'upload', displayName: file?.name || 'upload' }),
             })
             if (res.ok) {
                 toast.success('Leads uploaded to balance')
