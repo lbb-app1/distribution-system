@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import { getSession } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
  }
 
  // 1. Create upload record
- const { data: upload, error: uploadError } = await supabase
+ const { data: upload, error: uploadError } = await supabaseAdmin
  .from('lead_uploads')
  .insert({
  file_name: fileName || 'unknown',
@@ -30,6 +30,7 @@ export async function POST(request: Request) {
  .single()
 
  if (uploadError || !upload) {
+ console.error('Upload record error:', uploadError)
  return NextResponse.json({ error: uploadError?.message || 'Failed to create upload record' }, { status: 500 })
  }
 
@@ -42,17 +43,18 @@ export async function POST(request: Request) {
  upload_id: upload.id,
  }))
 
- const { error: leadsError } = await supabase
+ const { error: leadsError } = await supabaseAdmin
  .from('leads')
  .insert(assignments)
 
  if (leadsError) {
  // Rollback: delete the upload record
- await supabase.from('lead_uploads').delete().eq('id', upload.id)
+ await supabaseAdmin.from('lead_uploads').delete().eq('id', upload.id)
+ console.error('Leads insert error:', leadsError)
  return NextResponse.json({ error: leadsError.message }, { status: 500 })
  }
 
- // 3. Trigger already updates counts via DB trigger, but let's be safe and refresh
+ // 3. Return success
  return NextResponse.json({
  success: true,
  count: assignments.length,
@@ -60,6 +62,6 @@ export async function POST(request: Request) {
  })
  } catch (error) {
  console.error('Upload error:', error)
- return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+ return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal Server Error' }, { status: 500 })
  }
 }

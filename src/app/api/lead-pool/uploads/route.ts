@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import { getSession } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
  const { searchParams } = new URL(request.url)
  const activeOnly = searchParams.get('active') === 'true'
 
- let query = supabase
+ let query = supabaseAdmin
  .from('lead_uploads')
  .select(`
  id,
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
  }
 
  // 1. Create upload record
- const { data: upload, error: uploadError } = await supabase
+ const { data: upload, error: uploadError } = await supabaseAdmin
  .from('lead_uploads')
  .insert({
  file_name: fileName || 'unknown',
@@ -92,13 +92,13 @@ export async function POST(request: Request) {
  upload_id: upload.id,
  }))
 
- const { error: leadsError } = await supabase
+ const { error: leadsError } = await supabaseAdmin
  .from('leads')
  .insert(assignments)
 
  if (leadsError) {
  // Rollback: delete the upload record
- await supabase.from('lead_uploads').delete().eq('id', upload.id)
+ await supabaseAdmin.from('lead_uploads').delete().eq('id', upload.id)
  return NextResponse.json({ error: leadsError.message }, { status: 500 })
  }
 

@@ -113,7 +113,7 @@ export default function AssignLeadsPage() {
             const res = await fetch('/api/leads/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ leads, userIds: [] }), // userIds empty = no assignment
+                body: JSON.stringify({ leads, fileName: file.name, displayName: file.name }),
             })
             if (res.ok) {
                 toast.success('Leads uploaded to balance')
@@ -121,7 +121,8 @@ export default function AssignLeadsPage() {
                 setFile(null)
                 fetchBalance()
             } else {
-                toast.error('Upload failed')
+                const data = await res.json()
+                toast.error(data.error || 'Upload failed')
             }
         } catch (error) {
             toast.error('Error uploading leads')
