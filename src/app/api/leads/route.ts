@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabase, supabaseAdmin } from '@/lib/supabase'
 import { getSession } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
@@ -134,6 +134,37 @@ export async function DELETE(request: Request) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }
 
+ try {
+ const contentType = request.headers.get('content-type') || ''
+
+ let deleted = 0
+
+ if (contentType.includes('application/json')) {
+ // Bulk delete from body: { ids: string[] }
+ const body = await request.json()
+ const ids: string[] = body.ids
+
+ if (!ids || !Array.isArray(ids) || ids.length === 0) {
+ return NextResponse.json({ error: 'ids array required' }, { status: 400 })
+ }
+
+ // Delete in batches of 500
+ const BATCH = 500
+ for (let i = 0; i < ids.length; i += BATCH) {
+ const batch = ids.slice(i, i + BATCH)
+ const { error } = await supabaseAdmin
+ .from('leads')
+ .delete()
+ .in('id', batch)
+
+ if (error) {
+ console.error(`Batch delete error:`, error)
+ break
+ }
+ deleted += batch.length
+ }
+ } else {
+ // Single delete from query param
  const { searchParams } = new URL(request.url)
  const id = searchParams.get('id')
 
@@ -141,8 +172,7 @@ export async function DELETE(request: Request) {
  return NextResponse.json({ error: 'Lead ID is required' }, { status: 400 })
  }
 
- try {
- const { error } = await supabase
+ const { error } = await supabaseAdmin
  .from('leads')
  .delete()
  .eq('id', id)
@@ -150,9 +180,12 @@ export async function DELETE(request: Request) {
  if (error) {
  return NextResponse.json({ error: error.message }, { status: 500 })
  }
+ deleted = 1
+ }
 
- return NextResponse.json({ success: true })
+ return NextResponse.json({ success: true, count: deleted })
  } catch (error) {
- return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+ console.error('Delete error:', error)
+ return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal Server Error' }, { status: 500 })
  }
 }
