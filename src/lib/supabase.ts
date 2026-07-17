@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
+// Lazy-initialized clients via Proxy to prevent module-load crashes
+// when SUPABASE_SERVICE_ROLE_KEY is not yet configured during SSR build.
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 let supabaseClient: any = null
