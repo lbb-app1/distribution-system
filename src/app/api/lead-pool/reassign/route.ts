@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import { getSession } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
-// POST /api/lead-pool/reassign - reassign leads from upload to specific users
-// Body: { upload_id, user_id, lead_ids?, reassign_all?, count?, reason }
 export async function POST(request: Request) {
  const session = await getSession()
  if (!session || session.user.role !== 'admin') {
@@ -19,8 +17,7 @@ export async function POST(request: Request) {
  return NextResponse.json({ error: 'upload_id and user_id are required' }, { status: 400 })
  }
 
- // Verify the user exists and is not admin
- const { data: targetUser } = await supabase
+ const { data: targetUser } = await supabaseAdmin
  .from('users')
  .select('id, role')
  .eq('id', user_id)
@@ -34,27 +31,31 @@ export async function POST(request: Request) {
  let targetLeadIds: string[] = []
 
  if (reassign_all) {
- // Get all unassigned leads from this upload
- const { data: allLeads } = await supabase
+ const { data: updated } = await supabaseAdmin
  .from('leads')
- .select('id')
+ .update({ assigned_to: user_id, assigned_date: new Date().toISOString().split('T')[0], status: 'pending' })
  .eq('upload_id', upload_id)
- .eq('assigned_to', null)
+ .is('assigned_to', null)
+ .select('id')
 
- targetLeadIds = (allLeads || []).map((l: any) => l.id)
+ targetLeadIds = (updated || []).map((l: any) => l.id)
  } else if (lead_ids) {
  targetLeadIds = lead_ids
- } else if (count) {
- // Get specified count of unassigned leads
- const { data: allLeads } = await supabase
+ await supabaseAdmin
  .from('leads')
- .select('id')
+ .update({ assigned_to: user_id, assigned_date: new Date().toISOString().split('T')[0], status: 'pending' })
+ .in('id', targetLeadIds)
+ } else if (count) {
+ const { data: updated } = await supabaseAdmin
+ .from('leads')
+ .update({ assigned_to: user_id, assigned_date: new Date().toISOString().split('T')[0], status: 'pending' })
  .eq('upload_id', upload_id)
- .eq('assigned_to', null)
+ .is('assigned_to', null)
  .order('created_at')
  .limit(count)
+ .select('id')
 
- targetLeadIds = (allLeads || []).map((l: any) => l.id)
+ targetLeadIds = (updated || []).map((l: any) => l.id)
  } else {
  return NextResponse.json({ error: 'lead_ids, reassign_all, or count is required' }, { status: 400 })
  }
@@ -63,52 +64,15 @@ export async function POST(request: Request) {
  return NextResponse.json({ error: 'No available leads to reassign' }, { status: 400 })
  }
 
- // Reassign leads
  const today = new Date().toISOString().split('T')[0]
- const { error: updateError } = await supabase
- .from('leads')
- .update({
- assigned_to: user_id,
- assigned_date: today,
- status: 'pending',
- })
- .in('id', targetLeadIds)
 
- if (updateError) {
- return NextResponse.json({ error: updateError.message }, { status: 500 })
- }
+ const attendancePayload = { user_id: targetUser.id, date: today, total_tasks: targetLeadIds.length, completed_tasks: 0 }
+ await supabaseAdmin.from('daily_attendance').upsert(attendancePayload, { onConflict: 'user_id,date' })
 
- // Create/update attendance and tasks for today
- for (const leadId of targetLeadIds) {
- // Create attendance record for today
- await supabase
- .from('daily_attendance')
- .upsert(
- {
- user_id: targetUser.id,
- date: today,
- total_tasks: 0,
- completed_tasks: 0,
- },
- { onConflict: 'user_id,date' }
- )
+ const taskRows = targetLeadIds.map(leadId => ({ user_id: targetUser.id, lead_id: leadId, date: today, is_completed: false }))
+ await supabaseAdmin.from('daily_tasks').upsert(taskRows, { onConflict: 'user_id,lead_id,date' })
 
- // Create task
- await supabase
- .from('daily_tasks')
- .upsert(
- {
- user_id: targetUser.id,
- lead_id: leadId,
- date: today,
- is_completed: false,
- },
- { onConflict: 'user_id,lead_id,date' }
- )
- }
-
- // Log the bulk operation
- await supabase.from('bulk_operations').insert({
+ await supabaseAdmin.from('bulk_operations').insert({
  operation_type: 'reassign',
  upload_id,
  target_user_id: targetUser.id,

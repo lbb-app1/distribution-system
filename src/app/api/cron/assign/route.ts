@@ -1,75 +1,84 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
-    // Verify Cron Secret (Optional but recommended for security)
-    const authHeader = request.headers.get('authorization')
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+ const authHeader = request.headers.get('authorization')
+ if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+ return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+ }
 
-    try {
-        // 1. Get enabled settings
-        const { data: settings, error: settingsError } = await supabase
-            .from('auto_assign_settings')
-            .select('user_id, daily_limit')
-            .eq('is_enabled', true)
-            .gt('daily_limit', 0)
+ try {
+ const { data: settings, error: settingsError } = await supabaseAdmin
+ .from('auto_assign_settings')
+ .select('user_id, daily_limit')
+ .eq('is_enabled', true)
+ .gt('daily_limit', 0)
 
-        if (settingsError) throw settingsError
-        if (!settings || settings.length === 0) {
-            return NextResponse.json({ message: 'No auto-assignment tasks found' })
-        }
+ if (settingsError) throw settingsError
+ if (!settings || settings.length === 0) {
+ return NextResponse.json({ message: 'No auto-assignment tasks found' })
+ }
 
-        let totalAssigned = 0
-        const results = []
+ const userIds = settings.map((s: any) => s.user_id)
+ const limits = Object.fromEntries(settings.map((s: any) => [s.user_id, s.daily_limit]))
 
-        // 2. Process each user
-        for (const setting of settings) {
-            // Check if user is active
-            const { data: user } = await supabase
-                .from('users')
-                .select('is_active')
-                .eq('id', setting.user_id)
-                .single()
+ const { data: users, error: usersError } = await supabaseAdmin
+ .from('users')
+ .select('id, is_active')
+ .in('id', userIds)
 
-            if (!user || !user.is_active) continue
+ if (usersError) throw usersError
 
-            // Fetch unassigned leads
-            const { data: leadsToAssign, error: fetchError } = await supabase
-                .from('leads')
-                .select('id')
-                .is('assigned_to', null)
-                .limit(setting.daily_limit)
+ const activeUserIds = new Set(users.filter((u: any) => u.is_active).map((u: any) => u.id))
 
-            if (fetchError || !leadsToAssign || leadsToAssign.length === 0) {
-                results.push({ userId: setting.user_id, assigned: 0, status: 'No leads available' })
-                continue
-            }
+ const totalToAssign = Object.keys(limits)
+ .filter(id => activeUserIds.has(id))
+ .reduce((sum, id) => sum + limits[id], 0)
 
-            const leadIds = leadsToAssign.map((l: any) => l.id)
+ if (totalToAssign === 0) {
+ return NextResponse.json({ message: 'No active users with assignment enabled' })
+ }
 
-            // Assign leads
-            const { error: updateError } = await supabase
-                .from('leads')
-                .update({
-                    assigned_to: setting.user_id,
-                    assigned_date: new Date().toISOString().split('T')[0]
-                })
-                .in('id', leadIds)
+ const { data: leadsToAssign, error: fetchError } = await supabaseAdmin
+ .from('leads')
+ .select('id')
+ .is('assigned_to', null)
+ .eq('status', 'pending')
+ .limit(totalToAssign)
 
-            if (updateError) {
-                results.push({ userId: setting.user_id, error: updateError.message })
-            } else {
-                totalAssigned += leadIds.length
-                results.push({ userId: setting.user_id, assigned: leadIds.length })
-            }
-        }
+ if (fetchError || !leadsToAssign || leadsToAssign.length === 0) {
+ return NextResponse.json({ message: 'No unassigned leads available', totalAssigned: 0 })
+ }
 
-        return NextResponse.json({ success: true, totalAssigned, details: results })
-    } catch (error) {
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
-    }
+ const leadIds = leadsToAssign.map((l: any) => l.id)
+ const results: any[] = []
+ let leadIdx = 0
+ let totalAssigned = 0
+
+ for (const userId of Object.keys(limits)) {
+ if (!activeUserIds.has(userId)) continue
+ const limit = limits[userId]
+ const batch = leadIds.slice(leadIdx, leadIdx + limit)
+ if (batch.length === 0) break
+
+ const { error: updateError } = await supabaseAdmin
+ .from('leads')
+ .update({ assigned_to: userId, assigned_date: new Date().toISOString().split('T')[0] })
+ .in('id', batch)
+
+ if (updateError) {
+ results.push({ userId, assigned: 0, error: updateError.message })
+ } else {
+ totalAssigned += batch.length
+ results.push({ userId, assigned: batch.length })
+ }
+ leadIdx += batch.length
+ }
+
+ return NextResponse.json({ success: true, totalAssigned, details: results })
+ } catch (error) {
+ return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+ }
 }
