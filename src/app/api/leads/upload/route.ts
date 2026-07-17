@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { getSession } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
+const BATCH_SIZE = 200
 
 export async function POST(request: Request) {
  const session = await getSession()
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
  uploaded_by: session.user.id,
  lead_count: leads.length,
  })
- .select()
+ .select('id')
  .single()
 
  if (uploadError || !upload) {
@@ -34,8 +35,9 @@ export async function POST(request: Request) {
  return NextResponse.json({ error: uploadError?.message || 'Failed to create upload record' }, { status: 500 })
  }
 
- // 2. Insert leads with the upload_id reference
- const assignments = leads.map((lead: string) => ({
+ // 2. Insert leads in batches to avoid statement timeouts
+ for (let i = 0; i < leads.length; i += BATCH_SIZE) {
+ const batch = leads.slice(i, i + BATCH_SIZE).map((lead: string) => ({
  lead_identifier: lead,
  assigned_to: null,
  status: 'pending',
@@ -45,19 +47,19 @@ export async function POST(request: Request) {
 
  const { error: leadsError } = await supabaseAdmin
  .from('leads')
- .insert(assignments)
+ .insert(batch)
 
  if (leadsError) {
- // Rollback: delete the upload record
+ console.error(`Leads insert error (batch ${i}-${i + batch.length}):`, leadsError)
  await supabaseAdmin.from('lead_uploads').delete().eq('id', upload.id)
- console.error('Leads insert error:', leadsError)
- return NextResponse.json({ error: leadsError.message }, { status: 500 })
+ return NextResponse.json({ error: leadsError.message, batch: `${i}-${i + batch.length}` }, { status: 500 })
+ }
  }
 
  // 3. Return success
  return NextResponse.json({
  success: true,
- count: assignments.length,
+ count: leads.length,
  upload_id: upload.id,
  })
  } catch (error) {
